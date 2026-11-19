@@ -55,6 +55,10 @@ python3-venv
 python3-pip
 sassc
 libglib2.0-dev-bin
+libxml2-utils
+imagemagick
+libarchive-tools
+dialog
 xdg-utils
 wl-clipboard
 xclip
