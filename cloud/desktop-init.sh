@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Make XFCE look like macOS: top menu bar, Plank dock, WhiteSur theme, left window buttons.
-sleep 3
+sleep 6
 x() { xfconf-query -c "$1" -p "$2" --create -t "$3" -s "$4" 2>/dev/null; }
 x xsettings /Net/ThemeName string WhiteSur-Dark
 x xsettings /Net/IconThemeName string WhiteSur-dark
@@ -22,4 +22,4 @@ for app in thunar skull-browser skull-claude xfce4-terminal skull-sync-setup; do
   f=/usr/share/applications/$app.desktop
   [ -f "$f" ] && printf '[PlankDockItemPreferences]\nLauncher=file://%s\n' "$f" > ~/.config/plank/dock1/launchers/$app.dockitem
 done
-pgrep -x plank >/dev/null || plank &
+pkill -x plank; (sleep 1; plank) &

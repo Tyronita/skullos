@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       tigervnc-standalone-server tigervnc-tools novnc websockify \
       curl wget ca-certificates git sudo gnupg procps less nano htop \
       restic rclone rsync jq zenity libnotify-bin espeak-ng sox \
-      fonts-inter fonts-noto-color-emoji sassc libglib2.0-dev-bin libxml2-utils imagemagick libarchive-tools dialog sudo xz-utils gtk-update-icon-cache gtk2-engines-murrine gnome-themes-extra \
+      fonts-inter fonts-noto-color-emoji sassc libglib2.0-dev-bin libxml2-utils imagemagick libarchive-tools dialog sudo xz-utils gtk-update-icon-cache librsvg2-common gtk2-engines-murrine gnome-themes-extra \
       python3 python3-venv python3-pip xdg-utils x11-xserver-utils \
     && rm -rf /var/lib/apt/lists/*
 
