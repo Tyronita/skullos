@@ -59,6 +59,9 @@ libxml2-utils
 imagemagick
 libarchive-tools
 dialog
+sudo
+xz-utils
+gtk-update-icon-cache
 xdg-utils
 wl-clipboard
 xclip

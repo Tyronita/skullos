@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       tigervnc-standalone-server tigervnc-tools novnc websockify \
       curl wget ca-certificates git sudo gnupg procps less nano htop \
       restic rclone rsync jq zenity libnotify-bin espeak-ng sox \
-      fonts-inter fonts-noto-color-emoji sassc libglib2.0-dev-bin libxml2-utils imagemagick libarchive-tools dialog gtk2-engines-murrine gnome-themes-extra \
+      fonts-inter fonts-noto-color-emoji sassc libglib2.0-dev-bin libxml2-utils imagemagick libarchive-tools dialog sudo xz-utils gtk-update-icon-cache gtk2-engines-murrine gnome-themes-extra \
       python3 python3-venv python3-pip xdg-utils x11-xserver-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,12 +27,12 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs && \
     npm install -g @anthropic-ai/claude-code && rm -rf /var/lib/apt/lists/* /root/.npm
 
-# macOS-style theme (WhiteSur)
+# macOS-style theme (WhiteSur): prebuilt archives (its install.sh needs a login session)
 RUN cd /tmp && git clone --depth=1 https://github.com/vinceliuice/WhiteSur-gtk-theme.git && \
     git clone --depth=1 https://github.com/vinceliuice/WhiteSur-icon-theme.git && \
-    (cd WhiteSur-gtk-theme && ./install.sh -d /usr/share/themes -c dark) && \
-    (cd WhiteSur-icon-theme && ./install.sh -d /usr/share/icons -t default) && \
-    rm -rf /tmp/WhiteSur-*
+    tar -xJf WhiteSur-gtk-theme/release/WhiteSur-Dark.tar.xz -C /usr/share/themes && \
+    (cd WhiteSur-icon-theme && SUDO_USER=root ./install.sh -d /usr/share/icons -t default) && \
+    test -d /usr/share/themes/WhiteSur-Dark/xfwm4 && rm -rf /tmp/WhiteSur-*
 
 # Shared SkullOS tools + config
 COPY iso/config/includes.chroot/usr/local/bin/ /usr/local/bin/
