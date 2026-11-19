@@ -1,0 +1,7 @@
+#!/bin/sh
+# Google Chrome stable (adds Google's apt repo so it keeps updating).
+set -e
+wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+apt-get install -y /tmp/chrome.deb
+rm -f /tmp/chrome.deb
+test -x /usr/bin/google-chrome-stable

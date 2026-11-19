@@ -1,0 +1,25 @@
+#!/bin/sh
+# Offline voice: whisper.cpp (speech-to-text) + Piper (text-to-speech).
+set -e
+mkdir -p /usr/share/skull/models /usr/share/skull/voices
+
+# whisper.cpp: build portable (no -march=native) so the ISO runs on any x86_64 CPU
+git clone --depth=1 https://github.com/ggml-org/whisper.cpp /tmp/whisper.cpp
+cd /tmp/whisper.cpp
+cmake -B build -DGGML_NATIVE=OFF -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)" --target whisper-cli
+install -m755 build/bin/whisper-cli /usr/local/bin/whisper-cli
+sh ./models/download-ggml-model.sh base.en
+mv models/ggml-base.en.bin /usr/share/skull/models/
+cd / && rm -rf /tmp/whisper.cpp
+
+# Piper TTS binary + one English voice
+wget -q -O /tmp/piper.tgz https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz
+tar -xzf /tmp/piper.tgz -C /opt && rm /tmp/piper.tgz
+ln -sf /opt/piper/piper /usr/local/bin/piper
+base=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium
+wget -q -O /usr/share/skull/voices/en_US-lessac-medium.onnx      "$base/en_US-lessac-medium.onnx"
+wget -q -O /usr/share/skull/voices/en_US-lessac-medium.onnx.json "$base/en_US-lessac-medium.onnx.json"
+
+whisper-cli --help >/dev/null 2>&1 || whisper-cli -h >/dev/null 2>&1 || true
+echo "hello" | piper --model /usr/share/skull/voices/en_US-lessac-medium.onnx --output_file /tmp/t.wav && rm /tmp/t.wav

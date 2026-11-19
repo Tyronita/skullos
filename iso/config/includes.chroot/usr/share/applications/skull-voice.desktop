@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Skull Voice
+Comment=Talk to Claude (Super+Space)
+Exec=skull-voice listen
+Icon=audio-input-microphone
+Terminal=false
+Categories=Utility;Accessibility;

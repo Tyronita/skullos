@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# skull-setup: configure S3 snapshot sync (GUI with zenity, or terminal prompts).
+set -euo pipefail
+CONF="$HOME/.config/skull/sync.env"; mkdir -p "$(dirname "$CONF")"
+gui=false; { [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v zenity >/dev/null && [ -z "${SKULL_NO_GUI:-}" ]; } && gui=true
+
+if $gui; then
+  out=$(zenity --forms --title="SkullOS Cloud Sync" --width=480 \
+    --text="Encrypted snapshots of your home folder to S3 (AWS, R2, B2, MinIO…).\nLeave endpoint empty for AWS." \
+    --add-entry="Bucket" --add-entry="Region (e.g. us-east-1)" --add-entry="Endpoint (optional)" \
+    --add-entry="Access key ID" --add-password="Secret access key" \
+    --add-password="Encryption password (keep it safe, cannot be recovered)" \
+    --separator=$'\x1f') || exit 1
+  IFS=$'\x1f' read -r bucket region endpoint akid secret pass <<<"$out"
+else
+  read -rp "S3 bucket: " bucket
+  read -rp "Region [us-east-1]: " region
+  read -rp "Endpoint (blank = AWS; e.g. <account>.r2.cloudflarestorage.com): " endpoint
+  read -rp "Access key ID: " akid
+  read -rsp "Secret access key: " secret; echo
+  read -rsp "Encryption password (cannot be recovered!): " pass; echo
+fi
+[ -n "$bucket" ] && [ -n "$akid" ] && [ -n "$secret" ] && [ -n "$pass" ] || { echo "All fields except region/endpoint are required." >&2; exit 1; }
+
+umask 077
+{
+  printf 'SKULL_S3_BUCKET=%q\n' "$bucket"
+  printf 'SKULL_S3_REGION=%q\n' "${region:-us-east-1}"
+  printf 'SKULL_S3_ENDPOINT=%q\n' "${endpoint:-s3.amazonaws.com}"
+  printf 'AWS_ACCESS_KEY_ID=%q\n' "$akid"
+  printf 'AWS_SECRET_ACCESS_KEY=%q\n' "$secret"
+  printf 'RESTIC_PASSWORD=%q\n' "$pass"
+} > "$CONF"
+chmod 600 "$CONF"
+
+( . "$CONF"
+  export RESTIC_REPOSITORY="s3:${SKULL_S3_ENDPOINT#https://}/${SKULL_S3_BUCKET}/${SKULL_S3_PREFIX:-skullos}"
+  export RESTIC_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION="$SKULL_S3_REGION"
+  restic cat config >/dev/null 2>&1 || restic init )
+
+systemctl --user daemon-reload 2>/dev/null || true
+systemctl --user enable --now skull-snapshot.timer 2>/dev/null || true
+
+msg="Sync configured. Hourly snapshots are on."
+if restic_count=$(skull-sync list 2>/dev/null | grep -c skullos) && [ "$restic_count" -gt 0 ]; then
+  if $gui; then
+    zenity --question --text="Found $restic_count existing snapshot(s). Restore the newest into your home folder now?" && skull-sync restore
+  else
+    read -rp "Found $restic_count snapshot(s). Restore newest now? [y/N] " a; [[ $a == [yY]* ]] && skull-sync restore
+  fi
+fi
+$gui && zenity --info --text="$msg" || echo "$msg"

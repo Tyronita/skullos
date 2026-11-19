@@ -1,0 +1,8 @@
+{
+  "RestoreOnStartup": 4,
+  "RestoreOnStartupURLs": ["https://claude.ai"],
+  "HomepageLocation": "https://claude.ai",
+  "ShowHomeButton": true,
+  "BookmarkBarEnabled": true,
+  "DefaultBrowserSettingEnabled": false
+}

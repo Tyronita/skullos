@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(skull-sync list)",
+      "Bash(skull-sync status)",
+      "Bash(skull-observe)",
+      "Bash(skull-voice say:*)"
+    ]
+  }
+}

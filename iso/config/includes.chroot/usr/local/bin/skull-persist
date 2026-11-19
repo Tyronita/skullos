@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# skull-persist: add a "persistence" partition in the free space of the SkullOS USB you booted from,
+# so files, settings, logins and installed apps survive reboots. Run once, then reboot.
+set -euo pipefail
+[ "$(id -u)" -eq 0 ] || exec sudo "$0" "$@"
+if blkid -L persistence >/dev/null 2>&1; then echo "Persistence partition already exists: $(blkid -L persistence)"; exit 0; fi
+medium=$(findmnt -no SOURCE /run/live/medium 2>/dev/null) || { echo "Not running from a SkullOS live USB." >&2; exit 1; }
+disk="/dev/$(lsblk -no PKNAME "$medium" | head -1)"
+[ -b "$disk" ] || { echo "Could not find boot disk for $medium" >&2; exit 1; }
+lsblk "$disk"
+free=$(parted -s "$disk" unit GB print free | awk '/Free Space/{v=$3} END{print v}')
+echo; echo "This will create a persistence partition using the free space ($free) at the end of $disk."
+read -rp "Type YES to continue: " ok; [ "$ok" = "YES" ] || exit 1
+echo ',,L' | sfdisk --append --no-reread --force "$disk"
+partx -u "$disk" 2>/dev/null || partprobe "$disk" 2>/dev/null || true
+sleep 2
+part=$(lsblk -lnpo NAME,TYPE "$disk" | awk '$2=="part"{p=$1} END{print p}')
+mkfs.ext4 -F -L persistence "$part"
+mnt=$(mktemp -d); mount "$part" "$mnt"; echo "/ union" > "$mnt/persistence.conf"; umount "$mnt"; rmdir "$mnt"
+echo "Done. Reboot and SkullOS will remember everything."

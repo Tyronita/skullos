@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# skull-mesh: OPT-IN sharing of CPU/RAM between SkullOS machines.
+# Machines join a private Tailscale network, then form a Ray cluster: Python jobs submitted to the
+# head can use every worker's cores and memory. Nothing is shared until you run these commands.
+#   skull-mesh up              join your tailnet (installs Tailscale on first use)
+#   skull-mesh host            start a Ray head on this machine
+#   skull-mesh join <head-ip>  donate this machine's CPU/RAM to that head
+#   skull-mesh status          show cluster resources
+#   skull-mesh down            stop sharing
+# Limits (in ~/.config/skull/mesh.env): SKULL_MESH_CPUS (default half the cores),
+#   SKULL_MESH_MEM_GB (default half the RAM)
+set -euo pipefail
+[ -f "$HOME/.config/skull/mesh.env" ] && . "$HOME/.config/skull/mesh.env"
+VENV="$HOME/.local/share/skull/ray-venv"
+cpus=${SKULL_MESH_CPUS:-$(( $(nproc) / 2 > 0 ? $(nproc) / 2 : 1 ))}
+mem_gb=${SKULL_MESH_MEM_GB:-$(( $(free -g | awk '/Mem:/{print $2}') / 2 ))}
+mem_bytes=$(( mem_gb * 1024 * 1024 * 1024 ))
+
+need_ray() {
+  if [ ! -x "$VENV/bin/ray" ]; then
+    echo "Installing Ray into $VENV (one time)…"
+    python3 -m venv "$VENV" && "$VENV/bin/pip" install -q "ray[default]"
+  fi
+}
+ts_ip() { tailscale ip -4 2>/dev/null | head -1; }
+
+case "${1:-}" in
+  up)
+    command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh
+    sudo tailscale up
+    echo "Tailnet IP: $(ts_ip)" ;;
+  host)
+    need_ray; ip=$(ts_ip); [ -n "$ip" ] || { echo "Run: skull-mesh up" >&2; exit 1; }
+    "$VENV/bin/ray" start --head --node-ip-address="$ip" --port=6379 --dashboard-host="$ip" \
+      --num-cpus="$cpus" --memory="$mem_bytes"
+    echo; echo "Others join with:  skull-mesh join $ip"
+    echo "Dashboard: http://$ip:8265   Use from Python: ray.init(address='auto')" ;;
+  join)
+    head=${2:?usage: skull-mesh join <head-tailnet-ip>}
+    need_ray; ip=$(ts_ip); [ -n "$ip" ] || { echo "Run: skull-mesh up" >&2; exit 1; }
+    echo "Sharing $cpus CPUs and ${mem_gb}GB RAM with $head"
+    "$VENV/bin/ray" start --address="$head:6379" --node-ip-address="$ip" \
+      --num-cpus="$cpus" --memory="$mem_bytes" ;;
+  status) need_ray; "$VENV/bin/ray" status ;;
+  down) [ -x "$VENV/bin/ray" ] && "$VENV/bin/ray" stop; echo "Stopped sharing." ;;
+  *) sed -n '2,13p' "$0"; exit 2 ;;
+esac

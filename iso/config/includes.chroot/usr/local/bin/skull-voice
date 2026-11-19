@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# skull-voice: push-to-talk voice assistant.
+# mic -> whisper.cpp (offline STT) -> Claude Code (`claude -p`) -> piper (offline TTS)
+#   skull-voice listen        record until you stop talking, then answer out loud
+#   skull-voice ask "text"    same, but typed
+#   skull-voice say "text"    just speak
+# Optional config in ~/.config/skull/voice.env:
+#   SKULL_VOICE_CLAUDE_ARGS="--permission-mode acceptEdits"   # let voice commands edit files
+#   SKULL_WHISPER_MODEL=/path/ggml-*.bin   SKULL_PIPER_VOICE=/path/*.onnx
+set -uo pipefail
+[ -f "$HOME/.config/skull/voice.env" ] && . "$HOME/.config/skull/voice.env"
+MODEL=${SKULL_WHISPER_MODEL:-/usr/share/skull/models/ggml-base.en.bin}
+VOICE=${SKULL_PIPER_VOICE:-/usr/share/skull/voices/en_US-lessac-medium.onnx}
+CLAUDE_ARGS=${SKULL_VOICE_CLAUDE_ARGS:-}
+SYS="You are the voice assistant built into SkullOS. Your reply is read aloud: answer in 1-3 short spoken sentences, no markdown, no code blocks unless asked. If you performed actions, say briefly what you did."
+
+notify() { command -v notify-send >/dev/null && notify-send -a "Skull Voice" -i audio-input-microphone -h string:x-canonical-private-synchronous:skull-voice "$@" 2>/dev/null; true; }
+
+say() {
+  local text
+  text=$(printf '%s' "$1" | sed -E 's/```[^`]*```//g; s/[*_#`>]//g' | tr '\n' ' ' | cut -c1-1200)
+  if command -v piper >/dev/null && [ -f "$VOICE" ]; then
+    printf '%s' "$text" | piper --model "$VOICE" --output_raw 2>/dev/null | aplay -q -r 22050 -f S16_LE -t raw - 2>/dev/null
+  elif command -v espeak-ng >/dev/null; then
+    espeak-ng "$text" 2>/dev/null
+  else
+    printf '%s\n' "$text"
+  fi
+}
+
+ask() {
+  local q=$1 a
+  if ! command -v claude >/dev/null; then say "Claude Code is not installed."; return 1; fi
+  notify "Thinking…" "$q"
+  # shellcheck disable=SC2086
+  a=$(cd "$HOME" && claude -p --append-system-prompt "$SYS" $CLAUDE_ARGS "$q" 2>&1)
+  if [ $? -ne 0 ] || [ -z "$a" ]; then
+    a="I couldn't reach Claude. Open a terminal and run claude to sign in."
+  fi
+  notify "Claude" "$a"
+  printf '%s\n' "$a"
+  say "$a"
+}
+
+listen() {
+  local tmp text
+  tmp=$(mktemp -d); trap 'rm -rf "$tmp"' RETURN
+  notify "Listening…" "Speak now. Stops after 1.5s of silence."
+  # start on sound, stop after 1.5s silence, hard cap 30s
+  rec -q -c 1 -r 16000 -b 16 "$tmp/q.wav" silence 1 0.1 2% 1 1.5 2% trim 0 30 2>/dev/null || {
+    notify "No microphone" "Check Settings → Sound → Input"; return 1; }
+  text=$(whisper-cli -m "$MODEL" -f "$tmp/q.wav" -nt -np -t "$(nproc)" 2>/dev/null \
+         | tr -s ' \n' ' ' | sed -E 's/^ +| +$//g; s/\[[A-Z_ ]+\]//g')
+  if [ -z "${text// /}" ]; then notify "Didn't catch that"; return 0; fi
+  ask "$text"
+}
+
+# one listener at a time (hotkey mashing)
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/skull-voice.lock"
+flock -n 9 || { notify "Already listening"; exit 0; }
+
+case "${1:-listen}" in
+  listen) listen ;;
+  ask)    shift; ask "$*" ;;
+  say)    shift; say "$*" ;;
+  *)      sed -n '2,12p' "$0"; exit 2 ;;
+esac

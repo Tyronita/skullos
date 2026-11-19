@@ -1,0 +1,20 @@
+#!/bin/sh
+# SkullOS live-build configuration (Debian 12 "bookworm", amd64)
+set -e
+lb config noauto \
+  --mode debian \
+  --distribution bookworm \
+  --architectures amd64 \
+  --archive-areas "main contrib non-free non-free-firmware" \
+  --security true \
+  --updates true \
+  --binary-images iso-hybrid \
+  --debian-installer none \
+  --firmware-binary true \
+  --firmware-chroot true \
+  --iso-application "SkullOS" \
+  --iso-publisher "SkullOS project" \
+  --iso-volume "SKULLOS" \
+  --image-name skullos \
+  --bootappend-live "boot=live components quiet splash persistence username=skull hostname=skullos user-fullname=Skull" \
+  "${@}"

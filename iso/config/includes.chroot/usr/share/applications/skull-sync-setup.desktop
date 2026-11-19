@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Cloud Sync
+Comment=S3 snapshots of your home folder
+Exec=skull-setup
+Icon=folder-cloud
+Terminal=false
+Categories=Settings;Utility;

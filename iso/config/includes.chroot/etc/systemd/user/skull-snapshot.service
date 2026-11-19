@@ -1,0 +1,10 @@
+[Unit]
+Description=SkullOS snapshot of home to S3
+ConditionPathExists=%h/.config/skull/sync.env
+After=network-online.target
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/usr/local/bin/skull-sync snapshot

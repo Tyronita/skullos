@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# skull-observe: write a JSON snapshot of machine state (processes, memory, disks, packages).
+# Included in every skull-sync snapshot so you can see what a machine was doing at any point.
+set -euo pipefail
+dir="$HOME/.local/state/skull/observe"; mkdir -p "$dir"
+out="$dir/$(date -u +%Y%m%dT%H%M%SZ).json"
+jq -n \
+  --arg host "$(hostname)" \
+  --arg time "$(date -u +%FT%TZ)" \
+  --arg kernel "$(uname -r)" \
+  --arg uptime "$(cut -d' ' -f1 /proc/uptime)" \
+  --argjson cpus "$(nproc)" \
+  --arg load "$(cut -d' ' -f1-3 /proc/loadavg)" \
+  --arg mem "$(free -b | awk '/Mem:/{print $2" "$3" "$7}')" \
+  --arg disk "$(df -B1 --output=target,size,used / "$HOME" 2>/dev/null | tail -n +2)" \
+  --arg procs "$(ps -eo pid,user,pcpu,pmem,rss,etimes,comm --sort=-pcpu | head -40)" \
+  --arg pkgs "$(dpkg-query -W -f='${Package} ${Version}\n' 2>/dev/null | wc -l)" \
+  '{host:$host,time:$time,kernel:$kernel,uptime_s:($uptime|tonumber),cpus:$cpus,load:$load,
+    mem_bytes:($mem|split(" ")|{total:.[0]|tonumber,used:.[1]|tonumber,available:.[2]|tonumber}),
+    disk:$disk,top_processes:($procs|split("\n")),package_count:($pkgs|tonumber)}' > "$out"
+# keep the last 500 observations
+ls -1t "$dir"/*.json 2>/dev/null | tail -n +501 | xargs -r rm -f
+echo "$out"

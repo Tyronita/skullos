@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to SkullOS
+Comment=First-run setup
+Exec=skull-welcome
+Icon=system-help
+Terminal=false
+Categories=Settings;

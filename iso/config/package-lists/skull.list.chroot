@@ -1,0 +1,65 @@
+# --- live system ---
+live-boot
+live-config
+live-config-systemd
+systemd-sysv
+
+# --- desktop (GNOME, themed to feel like macOS) ---
+gnome-core
+gnome-tweaks
+gnome-shell-extensions
+gnome-shell-extension-dashtodock
+gnome-shell-extension-appindicator
+gnome-themes-extra
+gtk2-engines-murrine
+dconf-cli
+fonts-inter
+fonts-noto-color-emoji
+zenity
+libnotify-bin
+
+# --- installer (install to an internal disk) ---
+calamares
+calamares-settings-debian
+
+# --- hardware ---
+firmware-linux
+firmware-iwlwifi
+firmware-realtek
+firmware-misc-nonfree
+firmware-sof-signed
+
+# --- voice ---
+sox
+libsox-fmt-all
+alsa-utils
+pipewire-audio
+espeak-ng
+
+# --- cloud sync / snapshots ---
+restic
+rclone
+rsync
+jq
+
+# --- tooling ---
+curl
+wget
+git
+ca-certificates
+gnupg
+build-essential
+cmake
+python3
+python3-venv
+python3-pip
+sassc
+libglib2.0-dev-bin
+xdg-utils
+wl-clipboard
+xclip
+util-linux
+fdisk
+e2fsprogs
+parted
+htop

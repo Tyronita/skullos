@@ -1,0 +1,75 @@
+[org/gnome/shell]
+enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'ubuntu-appindicators@ubuntu.com', 'user-theme@gnome-shell-extensions.gcampax.github.com']
+favorite-apps=['org.gnome.Nautilus.desktop', 'google-chrome.desktop', 'skull-claude.desktop', 'skull-voice.desktop', 'org.gnome.Terminal.desktop', 'skull-sync-setup.desktop', 'org.gnome.Settings.desktop']
+
+[org/gnome/shell/extensions/user-theme]
+name='WhiteSur-Dark'
+
+[org/gnome/shell/extensions/dash-to-dock]
+dock-position='BOTTOM'
+dock-fixed=false
+autohide=true
+intellihide=true
+intellihide-mode='FOCUS_APPLICATION_WINDOWS'
+extend-height=false
+dash-max-icon-size=52
+show-trash=true
+show-mounts=false
+show-show-apps-button=true
+show-apps-at-top=false
+transparency-mode='DYNAMIC'
+running-indicator-style='DOTS'
+click-action='minimize-or-previews'
+custom-theme-shrink=true
+apply-custom-theme=false
+
+[org/gnome/desktop/interface]
+gtk-theme='WhiteSur-Dark'
+icon-theme='WhiteSur-dark'
+cursor-theme='WhiteSur-cursors'
+font-name='Inter 11'
+document-font-name='Inter 11'
+monospace-font-name='Monospace 11'
+color-scheme='prefer-dark'
+enable-hot-corners=true
+clock-show-weekday=true
+show-battery-percentage=true
+
+[org/gnome/desktop/wm/preferences]
+button-layout='close,minimize,maximize:'
+titlebar-font='Inter Semi-Bold 11'
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/skull/skull.svg'
+picture-uri-dark='file:///usr/share/backgrounds/skull/skull.svg'
+picture-options='zoom'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/backgrounds/skull/skull.svg'
+
+[org/gnome/desktop/peripherals/touchpad]
+tap-to-click=true
+natural-scroll=true
+two-finger-scrolling-enabled=true
+
+[org/gnome/mutter]
+center-new-windows=true
+dynamic-workspaces=true
+
+[org/gnome/desktop/wm/keybindings]
+switch-input-source=['XF86Keyboard']
+switch-input-source-backward=@as []
+close=['<Super>q', '<Alt>F4']
+
+[org/gnome/settings-daemon/plugins/media-keys]
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/skull-voice/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/skull-term/']
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/skull-voice]
+name='Skull Voice (talk to Claude)'
+command='skull-voice listen'
+binding='<Super>space'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/skull-term]
+name='Terminal'
+command='gnome-terminal'
+binding='<Primary><Alt>t'

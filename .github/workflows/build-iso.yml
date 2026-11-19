@@ -1,0 +1,85 @@
+name: Build ISO
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['iso/**', '.github/workflows/build-iso.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - run: shellcheck -S error iso/config/includes.chroot/usr/local/bin/skull-* iso/config/hooks/normal/*.chroot cloud/*.sh scripts/*.sh iso/build.sh
+
+  iso:
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          docker system prune -af
+          df -h /
+
+      - name: Build ISO (live-build in Debian container)
+        run: ./iso/build.sh
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: iso/build.log
+
+      - name: Boot test in QEMU
+        run: |
+          sudo apt-get update && sudo apt-get install -y qemu-system-x86 xorriso
+          sudo chmod 666 /dev/kvm 2>/dev/null && accel="-enable-kvm -cpu host" || accel=""
+          mkdir -p /tmp/k && cd /tmp/k
+          xorriso -osirrox on -indev "$GITHUB_WORKSPACE/iso/out/skullos-amd64.hybrid.iso" -extract /live live >/dev/null 2>&1
+          kernel=$(ls live/vmlinuz* | head -1); initrd=$(ls live/initrd.img* | head -1)
+          timeout 900 qemu-system-x86_64 $accel -m 4096 -smp 2 -nographic -no-reboot \
+            -cdrom "$GITHUB_WORKSPACE/iso/out/skullos-amd64.hybrid.iso" \
+            -kernel "$kernel" -initrd "$initrd" \
+            -append "boot=live components username=skull hostname=skullos console=ttyS0 systemd.unit=multi-user.target" \
+            > boot.log 2>&1 &
+          for i in $(seq 1 180); do
+            if grep -q "skullos login:" boot.log; then echo "BOOT OK after $((i*5))s"; tail -30 boot.log; kill %1; exit 0; fi
+            sleep 5
+          done
+          echo "Did not reach login prompt"; tail -100 boot.log; exit 1
+
+      - name: Prepare release files (GitHub caps assets at 2 GB)
+        run: |
+          cd iso/out
+          size=$(stat -c%s skullos-amd64.hybrid.iso)
+          if [ "$size" -gt 2000000000 ]; then
+            split -b 1900M -d skullos-amd64.hybrid.iso skullos-amd64.hybrid.iso.part
+            rm skullos-amd64.hybrid.iso
+            echo "Reassemble with: cat skullos-amd64.hybrid.iso.part* > skullos-amd64.hybrid.iso" > HOW-TO-JOIN.txt
+          fi
+          ls -lh
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skullos-iso
+          path: iso/out/*
+          compression-level: 0
+          retention-days: 30
+
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: iso/out/*

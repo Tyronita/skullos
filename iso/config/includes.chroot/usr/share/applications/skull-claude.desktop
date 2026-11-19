@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Claude Code
+Comment=Claude in a terminal
+Exec=gnome-terminal --title=Claude -- bash -lc 'claude; exec bash'
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;Utility;

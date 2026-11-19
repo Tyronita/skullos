@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# First-login assistant. Re-run any time from the app grid ("Welcome to SkullOS").
+set -uo pipefail
+mark="$HOME/.config/skull/welcome-done"
+[ "${1:-}" = "--autostart" ] && [ -f "$mark" ] && exit 0
+mkdir -p "$(dirname "$mark")"
+while true; do
+  choice=$(zenity --list --title="Welcome to SkullOS" --width=560 --height=420 \
+    --text="Pick a step. You can come back to this window later." \
+    --column="" --column="Step" --hide-column=1 --print-column=1 \
+    claude  "1. Sign in to Claude Code" \
+    chrome  "2. Open Chrome and sign in (sync bookmarks and extensions)" \
+    ext     "3. Install Claude in Chrome (browser agent)" \
+    sync    "4. Set up S3 cloud sync and snapshots" \
+    restore "5. Restore my files from the cloud" \
+    persist "6. Make this USB remember changes (persistence)" \
+    voice   "7. Test voice (or press Super+Space at any time)" \
+    install "8. Install SkullOS to this computer's disk" \
+    done    "Done") || break
+  case "$choice" in
+    claude)  gnome-terminal -- bash -lc 'claude; exec bash' ;;
+    chrome)  google-chrome-stable https://accounts.google.com/ & ;;
+    ext)     google-chrome-stable "https://chromewebstore.google.com/search/claude" & ;;
+    sync)    skull-setup ;;
+    restore) gnome-terminal -- bash -lc 'skull-sync restore; read -rp "Press enter"' ;;
+    persist) gnome-terminal -- bash -lc 'skull-persist; read -rp "Press enter"' ;;
+    voice)   skull-voice say "Hi, I'm Skull. Press Super and space, then talk to me." ;;
+    install) (command -v install-debian && install-debian || sudo calamares) & ;;
+    done|*)  break ;;
+  esac
+done
+touch "$mark"

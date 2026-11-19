@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# skull-sync: encrypted, deduplicated snapshots of your home directory to any S3 bucket (restic).
+# Boot SkullOS anywhere, run `skull-sync restore`, and your files, Claude setup and Chrome profile come back.
+#   skull-sync snapshot           back up $HOME now (plus a skull-observe state snapshot)
+#   skull-sync list               list snapshots from every machine
+#   skull-sync restore [ID]       restore snapshot (default: newest from any machine) into $HOME
+#   skull-sync status             repo stats
+#   skull-sync prune              keep 24 hourly, 14 daily, 8 weekly, 12 monthly
+# Config: ~/.config/skull/sync.env (created by skull-setup)
+set -euo pipefail
+CONF="$HOME/.config/skull/sync.env"
+[ -f "$CONF" ] || { echo "Not configured. Run: skull-setup" >&2; exit 1; }
+# shellcheck disable=SC1090
+. "$CONF"
+: "${SKULL_S3_BUCKET:?missing in $CONF}" "${RESTIC_PASSWORD:?missing in $CONF}"
+endpoint=${SKULL_S3_ENDPOINT:-s3.amazonaws.com}
+export RESTIC_REPOSITORY="s3:${endpoint#https://}/${SKULL_S3_BUCKET}/${SKULL_S3_PREFIX:-skullos}"
+export RESTIC_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+export AWS_DEFAULT_REGION=${SKULL_S3_REGION:-us-east-1}
+host=${SKULL_MACHINE_NAME:-$(hostname)}
+
+case "${1:-}" in
+  snapshot)
+    command -v skull-observe >/dev/null && skull-observe >/dev/null || true
+    restic backup "$HOME" --host "$host" --tag skullos --exclude-caches --one-file-system \
+      --exclude "$HOME/.cache" --exclude "$HOME/.local/share/Trash" \
+      --exclude "**/node_modules" --exclude "**/.venv" --exclude "**/__pycache__" \
+      --exclude "$HOME/.config/google-chrome/*/Service Worker/CacheStorage" \
+      --exclude "$HOME/.local/share/skull/ray-venv"
+    ;;
+  list) restic snapshots --tag skullos ;;
+  status) restic stats --mode raw-data; restic snapshots --tag skullos --latest 1 --compact ;;
+  prune) restic forget --tag skullos --keep-hourly 24 --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune ;;
+  restore)
+    id=${2:-}
+    if [ -z "$id" ]; then
+      id=$(restic snapshots --tag skullos --json | jq -r 'sort_by(.time) | last | .short_id // empty')
+      [ -n "$id" ] || { echo "No snapshots yet." >&2; exit 1; }
+    fi
+    src=$(restic snapshots "$id" --json | jq -r '.[0].paths[0]')
+    echo "Restoring snapshot $id ($src) into $HOME …"
+    tmp=$(mktemp -d "$HOME/.skull-restore.XXXX")
+    restic restore "$id" --target "$tmp" --include "$src"
+    rsync -a "$tmp$src/" "$HOME/"
+    rm -rf "$tmp"
+    echo "Done. Log out and back in to pick up desktop settings."
+    ;;
+  *) sed -n '2,10p' "$0"; exit 2 ;;
+esac

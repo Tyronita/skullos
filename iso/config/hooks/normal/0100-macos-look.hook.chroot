@@ -1,0 +1,21 @@
+#!/bin/sh
+# WhiteSur (MIT/GPL, by vinceliuice): macOS-style GTK, shell, icon and cursor themes.
+set -e
+work=$(mktemp -d)
+cd "$work"
+git clone --depth=1 https://github.com/vinceliuice/WhiteSur-gtk-theme.git
+git clone --depth=1 https://github.com/vinceliuice/WhiteSur-icon-theme.git
+git clone --depth=1 https://github.com/vinceliuice/WhiteSur-cursors.git
+
+# GTK3 + GNOME Shell theme, light & dark, into /usr/share/themes
+( cd WhiteSur-gtk-theme && ./install.sh -d /usr/share/themes -c dark -c light )
+# GTK4/libadwaita apps: ship the WhiteSur gtk-4.0 css as the skel default
+( cd WhiteSur-gtk-theme && HOME=/etc/skel ./install.sh -l -c dark ) || echo "WARN: libadwaita theming skipped"
+( cd WhiteSur-icon-theme && ./install.sh -d /usr/share/icons -t default ) 
+( cd WhiteSur-cursors && ./install.sh ) || cp -r WhiteSur-cursors/dist /usr/share/icons/WhiteSur-cursors
+
+cd /
+rm -rf "$work"
+gtk-update-icon-cache -f /usr/share/icons/WhiteSur-dark 2>/dev/null || true
+ls /usr/share/themes | grep -i whitesur
+dconf update
