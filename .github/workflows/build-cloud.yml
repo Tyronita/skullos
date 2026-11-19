@@ -30,6 +30,6 @@ jobs:
           tags: ghcr.io/tyronita/skullos-cloud:latest
       - name: Smoke test (desktop comes up on :6080)
         run: |
-          docker run -d --name s -e VNC_PASSWORD=testpass1 -p 6080:6080 ghcr.io/tyronita/skullos-cloud:latest
-          for i in $(seq 1 30); do curl -sf localhost:6080/vnc.html >/dev/null && { echo OK; docker exec s claude --version; exit 0; }; sleep 3; done
-          docker logs s; exit 1
+          docker run -d --name skulltest -e VNC_PASSWORD=testpass1 -p 6080:6080 ghcr.io/tyronita/skullos-cloud:latest
+          for i in $(seq 1 30); do curl -sf localhost:6080/vnc.html >/dev/null && { echo OK; docker exec skulltest claude --version; exit 0; }; sleep 3; done
+          docker logs skulltest; exit 1
